@@ -102,8 +102,9 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
 
                         boolean didSucceed = context.startActivityForResult(authIntent, AUTH_REQUEST_CODE, new android.os.Bundle());
                         System.out.println(didSucceed);
-
-
+                    } else {
+                        System.out.println("no authentication on this device");
+                        // no authentication on this device
                     }
 
                 }
