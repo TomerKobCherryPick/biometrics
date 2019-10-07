@@ -68,7 +68,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                     } else {
                         System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
                     }
-
                 }
 
                 private void _onNoBiometrics() {
@@ -89,7 +88,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                                     context.removeActivityEventListener(this);
                                 }
                             }
-
                         };
                         context.addActivityEventListener(authEventListener);
 
@@ -99,7 +97,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                         System.out.println("no authentication on this device");
                         // no authentication on this device
                     }
-
                 }
 
 
@@ -118,8 +115,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                     super.onAuthenticationSucceeded(result);
                     System.out.println("onAuthenticationSucceeded : result: " +  result);
                 }
-
-
             };
         }
     }
