@@ -1,16 +1,29 @@
 package com.bioauth.Authenticator;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.biometrics.*;
+
+import android.content.pm.PackageManager;
+import android.app.KeyguardManager;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.CancellationSignal;
 
+import com.bioauth.R;
+import com.facebook.react.bridge.ActivityEventListener;
+import com.facebook.react.bridge.BaseActivityEventListener;
+import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 
 import java.util.concurrent.Executor;
+
+import static android.content.Context.KEYGUARD_SERVICE;
 
 public class BioAuth extends ReactContextBaseJavaModule implements DialogInterface.OnClickListener {
     private static ReactApplicationContext reactContext;
@@ -27,8 +40,14 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         setBioPrompt(context);
     }
 
+    private Boolean isDeviceSupportsBiometrics() {
+
+        return true;
+    }
+
+
     private void setBioPrompt(ReactApplicationContext context) {
-       // bioPrompt.
+        PackageManager pm = context.getPackageManager();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             executor = new Executor() {
                 @Override
@@ -42,7 +61,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
 
             bioPromptBuilder.setNegativeButton("Cancel", executor, this);
 
-           // bioPromptBuilder.setNegativeButton("Tomer's cancel", executor)
             bioPrompt = bioPromptBuilder.build();
 
             cancelSignal = new CancellationSignal();
@@ -50,8 +68,47 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                 @Override
                 public void onAuthenticationError(int errorCode, CharSequence errString) {
                     super.onAuthenticationError(errorCode, errString);
-                    System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
+                    if ((errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS) ||
+                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
+                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
+                        (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
+                        _onNoBiometrics();
+                    } else {
+                        System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
+                    }
+
                 }
+
+                private void _onNoBiometrics() {
+                    KeyguardManager km = (KeyguardManager) context.getSystemService(KEYGUARD_SERVICE);
+                    if (km.isKeyguardSecure()) {
+                        Intent authIntent = km.createConfirmDeviceCredentialIntent("tomer's bio Experiment", null);
+                        int AUTH_REQUEST_CODE = 1;
+                        ActivityEventListener authEventListener = new BaseActivityEventListener(){
+                            @Override
+                            public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent){
+                                if (requestCode == AUTH_REQUEST_CODE) {
+                                    if (resultCode == Activity.RESULT_OK) {
+                                       // passcode succeeded
+                                    } else {
+                                        // passcode did not succeed
+                                    }
+                                    context.removeActivityEventListener(this);
+                                }
+                            }
+
+                        };
+                        context.addActivityEventListener(authEventListener);
+
+                        boolean didSucceed = context.startActivityForResult(authIntent, AUTH_REQUEST_CODE, new android.os.Bundle());
+                        System.out.println(didSucceed);
+
+
+                    }
+
+                }
+
+
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
@@ -73,6 +130,7 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         }
     }
 
+
     public void onClick(DialogInterface dialog, int which) {
         // on pressing cancel
         System.out.println("dialog");
@@ -85,7 +143,7 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
 
     @TargetApi(28)
     @ReactMethod
-    public void authenticate() {
+    public void Authenticate() {
         if ((bioPrompt != null) && (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)) {
             bioPrompt.authenticate(cancelSignal, executor, callback);
         }

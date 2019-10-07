@@ -14,7 +14,7 @@ console.log('NativeModules', NativeModules)
       <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', }}>
         <TouchableOpacity
           style={{alignItems: 'center', justifyContent: 'center', width: 120, height: 50, borderRadius: 5, backgroundColor: 'grey', }}
-          onPress={() => authenticator.authenticate()}
+          onPress={() => authenticator.Authenticate()}
           >
           <Text style={{fontSize: 14}}>
             Authanticate
