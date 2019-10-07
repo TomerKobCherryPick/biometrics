@@ -40,14 +40,8 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         setBioPrompt(context);
     }
 
-    private Boolean isDeviceSupportsBiometrics() {
-
-        return true;
-    }
-
 
     private void setBioPrompt(ReactApplicationContext context) {
-        PackageManager pm = context.getPackageManager();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             executor = new Executor() {
                 @Override
@@ -58,12 +52,10 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
 
             bioPromptBuilder = new BiometricPrompt.Builder(context);
             bioPromptBuilder.setTitle("tomer's bio Experiment");
-
             bioPromptBuilder.setNegativeButton("Cancel", executor, this);
-
             bioPrompt = bioPromptBuilder.build();
-
             cancelSignal = new CancellationSignal();
+
             callback = new BiometricPrompt.AuthenticationCallback() {
                 @Override
                 public void onAuthenticationError(int errorCode, CharSequence errString) {
@@ -86,7 +78,8 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                         int AUTH_REQUEST_CODE = 1;
                         ActivityEventListener authEventListener = new BaseActivityEventListener(){
                             @Override
-                            public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent){
+                            public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
+                                super.onActivityResult(activity, requestCode, resultCode, intent);
                                 if (requestCode == AUTH_REQUEST_CODE) {
                                     if (resultCode == Activity.RESULT_OK) {
                                        // passcode succeeded
@@ -130,7 +123,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
             };
         }
     }
-
 
     public void onClick(DialogInterface dialog, int which) {
         // on pressing cancel
