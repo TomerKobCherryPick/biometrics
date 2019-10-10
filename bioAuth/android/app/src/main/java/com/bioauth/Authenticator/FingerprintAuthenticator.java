@@ -15,6 +15,7 @@ import android.widget.TextView;
 
 
 import com.bioauth.R;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 
 public class FingerprintAuthenticator {
@@ -54,27 +55,14 @@ public class FingerprintAuthenticator {
             }
         });
 
-        fingerPrintDialogBuilder.setNegativeButton("USE PASSWORD", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                context.getCurrentActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        fingerPrintDialog.hide();
-                        cancelSignal.cancel();
-                        BioAuth.onNoBiometrics();
-                    }
-                });
 
-            }
-        });
     }
 
     @TargetApi(23)
-    protected void authenticate() {
+    protected void authenticate(Callback onSuccess) {
         if (fingerprintManager != null) {
             if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints()) {
-                this.showFingerPrintDialog();
+                this.showFingerPrintDialog(onSuccess);
                 cancelSignal = new CancellationSignal();
                 fingerprintManager.authenticate(null, cancelSignal, 0, new FingerprintManager.AuthenticationCallback() {
                     @Override
@@ -94,9 +82,9 @@ public class FingerprintAuthenticator {
                             @Override
                             public void run() {
                                 fingerPrintDialog.hide();
+                                onSuccess.invoke();
                             }
                         });
-
                     }
 
                     @Override
@@ -117,15 +105,29 @@ public class FingerprintAuthenticator {
 
                 }, null);
             } else {
-              BioAuth.onNoBiometrics();
+              BioAuth.onNoBiometrics(onSuccess);
             }
         }
     }
 
-    private void showFingerPrintDialog() {
+    private void showFingerPrintDialog(Callback onSuccess) {
         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                fingerPrintDialogBuilder.setNegativeButton("USE PASSWORD", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                fingerPrintDialog.hide();
+                                cancelSignal.cancel();
+                                BioAuth.onNoBiometrics(onSuccess);
+                            }
+                        });
+
+                    }
+                });
                 LayoutInflater inflater = (LayoutInflater) reactContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
                 View customLayout = inflater.inflate(R.layout.fingerprint_dialog, null);
                 fingerPrintDialogBuilder.setView(customLayout);

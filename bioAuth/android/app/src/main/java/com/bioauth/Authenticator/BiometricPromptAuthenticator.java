@@ -6,6 +6,7 @@ import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
 import android.os.CancellationSignal;
 
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 
 import java.util.concurrent.Executor;
@@ -47,6 +48,13 @@ public class BiometricPromptAuthenticator {
             bioPrompt = bioPromptBuilder.build();
             cancelSignal = new CancellationSignal();
 
+
+        }
+    }
+
+    @TargetApi(28)
+    protected void authenticate(Callback onSuccess) {
+        if (bioPrompt != null) {
             callback = new BiometricPrompt.AuthenticationCallback() {
                 @Override
                 public void onAuthenticationError(int errorCode, CharSequence errString) {
@@ -55,7 +63,7 @@ public class BiometricPromptAuthenticator {
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
-                        BioAuth.onNoBiometrics();
+                        BioAuth.onNoBiometrics(onSuccess);
                     } else {
                         System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
                     }
@@ -75,14 +83,9 @@ public class BiometricPromptAuthenticator {
                 public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
                     System.out.println("onAuthenticationSucceeded : result: " +  result);
+                    onSuccess.invoke();
                 }
             };
-        }
-    }
-
-    @TargetApi(28)
-    protected void authenticate() {
-        if (bioPrompt != null) {
             bioPrompt.authenticate(cancelSignal, executor, callback);
         }
     }

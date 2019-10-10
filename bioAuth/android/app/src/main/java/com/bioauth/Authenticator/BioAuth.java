@@ -8,6 +8,7 @@ import android.os.Build;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.BaseActivityEventListener;
+import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
@@ -43,7 +44,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
      * this method responsible when there is no biometrics available on the device,
      * it tries to ask for a passcode instead
      */
-    protected static void onNoBiometrics() {
+    protected static void onNoBiometrics(Callback onSuccess) {
         KeyguardManager km = (KeyguardManager) reactContext.getSystemService(KEYGUARD_SERVICE);
         if (km.isKeyguardSecure()) {
             Intent authIntent = km.createConfirmDeviceCredentialIntent("tomer's bio Experiment", null);
@@ -55,6 +56,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
                     if (requestCode == AUTH_REQUEST_CODE) {
                         if (resultCode == Activity.RESULT_OK) {
                             // passcode succeeded
+                            onSuccess.invoke();
                         } else {
                             System.out.println("s");
                             // passcode did not succeed
@@ -78,11 +80,11 @@ public class BioAuth extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void Authenticate() {
+    public void Authenticate(Callback onSuccess, Callback onFail) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            biometricPromptAuthenticator.authenticate();
+            biometricPromptAuthenticator.authenticate(onSuccess);
         } else {
-            fingerprintAuthenticator.authenticate();
+            fingerprintAuthenticator.authenticate(onSuccess);
         }
     }
 }
