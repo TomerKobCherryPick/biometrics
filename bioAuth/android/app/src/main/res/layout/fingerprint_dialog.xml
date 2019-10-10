@@ -9,9 +9,9 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="To enable"
-        android:layout_marginBottom="8pt"
-        android:layout_marginTop="12pt"
+        android:text="Confirm fingerprint to continue"
+        android:layout_marginBottom="19pt"
+        android:layout_marginTop="6pt"
         android:layout_marginLeft="2pt"
         android:gravity="center"
         android:textSize="8pt"
@@ -23,6 +23,7 @@
         android:orientation="horizontal"
         >
         <ImageView
+            android:id="@+id/fingerprint_image"
             android:layout_width="16pt"
             android:layout_height="16pt"
             android:layout_marginLeft="2pt"
@@ -31,9 +32,10 @@
             android:layout_gravity="center"
             />
         <TextView
+            android:id="@+id/fingerprint_cta"
             android:layout_width="wrap_content"
             android:layout_gravity="center"
-            android:text="touch the sensor"
+            android:text="Touch sensor now"
             android:gravity="center"
             android:textSize="8pt"
             android:textColor="@android:color/darker_gray"

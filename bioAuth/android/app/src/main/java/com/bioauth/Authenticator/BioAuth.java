@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.Drawable;
 import android.hardware.biometrics.*;
 
 import android.content.pm.PackageManager;
@@ -18,7 +19,10 @@ import android.os.CancellationSignal;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.bioauth.R;
 import com.facebook.react.bridge.ActivityEventListener;
@@ -120,8 +124,6 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                 }
 
 
-
-
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
@@ -151,10 +153,18 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         fingerPrintDialogBuilder = new AlertDialog.Builder(context);
         fingerPrintDialogBuilder.setTitle("Fingerprint ID for Tomer's bio experiment");
         fingerPrintDialogBuilder.setCancelable(false);
+
         fingerPrintDialogBuilder.setPositiveButton("close", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
+                context.getCurrentActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        fingerPrintDialog.hide();
+                        cancelSignal.cancel();
+                    }
+                });
+
             }
         });
 
@@ -184,10 +194,17 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         LayoutInflater inflater = (LayoutInflater) reactContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View customLayout = inflater.inflate(R.layout.fingerprint_dialog, null );
         fingerPrintDialogBuilder.setView(customLayout);
-        fingerPrintDialog = fingerPrintDialogBuilder.create();
-        fingerPrintDialog.getWindow().setType(WindowManager.LayoutParams.
-                TYPE_TOAST);
-        fingerPrintDialog.show();
+        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                fingerPrintDialog = fingerPrintDialogBuilder.create();
+                fingerPrintDialog.setOwnerActivity(reactContext.getCurrentActivity());
+                fingerPrintDialog.getWindow().setType(WindowManager.LayoutParams.
+                        TYPE_TOAST);
+                fingerPrintDialog.show();
+            }
+        });
+
     }
 
     @TargetApi(23)
@@ -210,11 +227,29 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
                     @Override
                     public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
                         super.onAuthenticationSucceeded(result);
+                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                fingerPrintDialog.hide();
+                            }
+                        });
+
                     }
 
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
+                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                           @Override
+                           public void run() {
+                               Window fingerprintDialogWindow = fingerPrintDialog.getWindow();
+                               ImageView fingerprintImage = fingerprintDialogWindow.findViewById(R.id.fingerprint_image);
+                               TextView fingerprintCta = fingerprintDialogWindow.findViewById(R.id.fingerprint_cta);
+                               fingerprintCta.setText("Try Again.");
+                               fingerprintImage.setImageResource(R.drawable.fingerprint_fail);
+                           }
+                        });
+
                     }
 
                 }, null);
