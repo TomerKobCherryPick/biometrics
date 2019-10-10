@@ -2,66 +2,48 @@ package com.bioauth.Authenticator;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
-import android.hardware.biometrics.*;
-
-import android.content.pm.PackageManager;
 import android.app.KeyguardManager;
-import android.hardware.fingerprint.FingerprintManager;
 import android.os.Build;
-import android.os.Bundle;
-import android.os.CancellationSignal;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.Window;
-import android.view.WindowManager;
-import android.widget.ImageView;
-import android.widget.TextView;
 
-import com.bioauth.R;
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.BaseActivityEventListener;
-import com.facebook.react.bridge.ReactContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactMethod;
 
-import java.util.concurrent.Executor;
-
 import static android.content.Context.KEYGUARD_SERVICE;
 
-public class BioAuth extends ReactContextBaseJavaModule implements DialogInterface.OnClickListener {
+/**
+ * This class represents biometric authentication.
+ * there are 2 implementations here, one for 23 <= api < 28 , using Fingerprint manager
+ * and one for 28 <= api, using Biometric prompt. this is needed since, Fingerprint manager was deprecated
+ * in api 28, and Biometric Prompt was added instead.
+ * in order for this module to work you need to add the following line to your AndroidManifest.xml:
+ *  <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+ *  <uses-permission android:name="android.permission.USE_FINGERPRINT" />
+ */
+public class BioAuth extends ReactContextBaseJavaModule {
     private static ReactApplicationContext reactContext;
-    private BiometricPrompt.Builder bioPromptBuilder;
-    private BiometricPrompt bioPrompt;
-    private CancellationSignal cancelSignal;
-    private Executor executor;
-    private BiometricPrompt.AuthenticationCallback callback;
-    private DialogInterface.OnClickListener onClickListener;
+    private FingerprintAuthenticator fingerprintAuthenticator;
+    private BiometricPromptAuthenticator biometricPromptAuthenticator;
 
-    private FingerprintManager fingerprintManager;
-    private AlertDialog fingerPrintDialog;
-    private AlertDialog.Builder fingerPrintDialogBuilder;
-    private Activity fingerprintActivity;
     BioAuth(ReactApplicationContext context) {
         super(context);
         reactContext = context;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            setBioPrompt(context);
+            biometricPromptAuthenticator = new BiometricPromptAuthenticator(context);
         } else {
-            setFingerprintManager(context);
+            fingerprintAuthenticator = new FingerprintAuthenticator(context);
         }
-
     }
 
     @TargetApi(21)
-    private void _onNoBiometrics() {
+    /**
+     * this method responsible when there is no biometrics available on the device,
+     * it tries to ask for a passcode instead
+     */
+    protected static void onNoBiometrics() {
         KeyguardManager km = (KeyguardManager) reactContext.getSystemService(KEYGUARD_SERVICE);
         if (km.isKeyguardSecure()) {
             Intent authIntent = km.createConfirmDeviceCredentialIntent("tomer's bio Experiment", null);
@@ -90,181 +72,17 @@ public class BioAuth extends ReactContextBaseJavaModule implements DialogInterfa
         }
     }
 
-    /***
-     * api 28 implementation of Biometric authentication
-     * @param context - the ReactApplicationContext
-     */
-    private void setBioPrompt(ReactApplicationContext context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            executor = new Executor() {
-                @Override
-                public void execute(Runnable command) {
-                    command.run();
-                }
-            };
-
-            bioPromptBuilder = new BiometricPrompt.Builder(context);
-            bioPromptBuilder.setTitle("tomer's bio Experiment");
-            bioPromptBuilder.setNegativeButton("Cancel", executor, this);
-            bioPrompt = bioPromptBuilder.build();
-            cancelSignal = new CancellationSignal();
-
-            callback = new BiometricPrompt.AuthenticationCallback() {
-                @Override
-                public void onAuthenticationError(int errorCode, CharSequence errString) {
-                    super.onAuthenticationError(errorCode, errString);
-                    if ((errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS) ||
-                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
-                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
-                        (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
-                        _onNoBiometrics();
-                    } else {
-                        System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
-                    }
-                }
-
-
-                @Override
-                public void onAuthenticationFailed() {
-                    super.onAuthenticationFailed();
-                    System.out.println("authentication failed");
-                }
-                @Override
-                public void onAuthenticationHelp(int helpCode, CharSequence helpString) {
-                    super.onAuthenticationHelp(helpCode, helpString);
-                    System.out.println("authentication Help : helpCode: " + helpCode + " helpString: " + helpString);
-                }
-                @Override
-                public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
-                    super.onAuthenticationSucceeded(result);
-                    System.out.println("onAuthenticationSucceeded : result: " +  result);
-                }
-            };
-        }
-    }
-
-    @TargetApi(23)
-    private void setFingerprintManager(ReactApplicationContext context) {
-        fingerprintManager = (FingerprintManager) context.getSystemService(context.FINGERPRINT_SERVICE);
-        setFingerPrintAlertDialog(context);
-    }
-    @TargetApi(23)
-    private void setFingerPrintAlertDialog(ReactApplicationContext context) {
-        fingerPrintDialogBuilder = new AlertDialog.Builder(context);
-        fingerPrintDialogBuilder.setTitle("Fingerprint ID for Tomer's bio experiment");
-        fingerPrintDialogBuilder.setCancelable(false);
-
-        fingerPrintDialogBuilder.setPositiveButton("close", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                context.getCurrentActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        fingerPrintDialog.hide();
-                        cancelSignal.cancel();
-                    }
-                });
-
-            }
-        });
-
-    }
-
-    public void onClick(DialogInterface dialog, int which) {
-        // on pressing cancel
-        System.out.println("dialog");
-    }
-
     @Override
     public String getName() {
         return "BioAuth";
     }
 
-
     @ReactMethod
     public void Authenticate() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            authenticateAndroidP();
+            biometricPromptAuthenticator.authenticate();
         } else {
-            authenticateBeforeAndroidP();
+            fingerprintAuthenticator.authenticate();
         }
     }
-
-    private void _showFingerPrintDialog() {
-        LayoutInflater inflater = (LayoutInflater) reactContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View customLayout = inflater.inflate(R.layout.fingerprint_dialog, null );
-        fingerPrintDialogBuilder.setView(customLayout);
-        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                fingerPrintDialog = fingerPrintDialogBuilder.create();
-                fingerPrintDialog.setOwnerActivity(reactContext.getCurrentActivity());
-                fingerPrintDialog.getWindow().setType(WindowManager.LayoutParams.
-                        TYPE_TOAST);
-                fingerPrintDialog.show();
-            }
-        });
-
-    }
-
-    @TargetApi(23)
-    private void authenticateBeforeAndroidP() {
-        if (fingerprintManager != null) {
-            if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints()) {
-                _showFingerPrintDialog();
-                cancelSignal = new CancellationSignal();
-                fingerprintManager.authenticate(null, cancelSignal, 0, new FingerprintManager.AuthenticationCallback() {
-                    @Override
-                    public void onAuthenticationError(int errorCode, CharSequence errString) {
-                        super.onAuthenticationError(errorCode, errString);
-                    }
-
-                    @Override
-                    public void onAuthenticationHelp(int helpCode, CharSequence helpString) {
-                        super.onAuthenticationHelp(helpCode, helpString);
-                    }
-
-                    @Override
-                    public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
-                        super.onAuthenticationSucceeded(result);
-                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                fingerPrintDialog.hide();
-                            }
-                        });
-
-                    }
-
-                    @Override
-                    public void onAuthenticationFailed() {
-                        super.onAuthenticationFailed();
-                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
-                           @Override
-                           public void run() {
-                               Window fingerprintDialogWindow = fingerPrintDialog.getWindow();
-                               ImageView fingerprintImage = fingerprintDialogWindow.findViewById(R.id.fingerprint_image);
-                               TextView fingerprintCta = fingerprintDialogWindow.findViewById(R.id.fingerprint_cta);
-                               fingerprintCta.setText("Try Again.");
-                               fingerprintImage.setImageResource(R.drawable.fingerprint_fail);
-                           }
-                        });
-
-                    }
-
-                }, null);
-            } else {
-                _onNoBiometrics();
-            }
-        }
-    }
-
-    @TargetApi(28)
-    private void authenticateAndroidP() {
-        if (bioPrompt != null) {
-            bioPrompt.authenticate(cancelSignal, executor, callback);
-        }
-    }
-
-
 }
