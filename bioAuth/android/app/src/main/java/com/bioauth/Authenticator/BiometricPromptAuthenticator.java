@@ -19,6 +19,8 @@ public class BiometricPromptAuthenticator {
     private Executor executor;
     private BiometricPrompt.AuthenticationCallback callback;
     private DialogInterface.OnClickListener onClickListener;
+    private BioAuth.errorTypes error;
+
     BiometricPromptAuthenticator(ReactApplicationContext context) {
         setBioPrompt(context);
     }
@@ -43,17 +45,24 @@ public class BiometricPromptAuthenticator {
                 public void onClick(DialogInterface dialog, int which) {
                     // on pressing cancel
                     System.out.println("dialog");
+                    if (error == BioAuth.errorTypes.Failure) {
+                        BioAuth.onFailure.invoke(BioAuth.errorTypes.Failure.toString());
+                        error = null;
+
+                    }
+
                 }
             });
-            bioPrompt = bioPromptBuilder.build();
-            cancelSignal = new CancellationSignal();
+
 
 
         }
     }
 
     @TargetApi(28)
-    protected void authenticate(Callback onSuccess) {
+    protected void authenticate(Callback onSuccess, Callback onFailure) {
+        bioPrompt = bioPromptBuilder.build();
+        cancelSignal = new CancellationSignal();
         if (bioPrompt != null) {
             callback = new BiometricPrompt.AuthenticationCallback() {
                 @Override
@@ -63,15 +72,17 @@ public class BiometricPromptAuthenticator {
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
-                        BioAuth.onNoBiometrics(onSuccess);
+                        BioAuth.onNoBiometrics(onSuccess, onFailure);
                     } else {
                         System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
+                        onFailure.invoke(BioAuth.errorTypes.Failure.toString());
                     }
                 }
 
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
+                    error = BioAuth.errorTypes.Failure;
                     System.out.println("authentication failed");
                 }
                 @Override

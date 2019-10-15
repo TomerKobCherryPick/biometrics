@@ -28,7 +28,13 @@ public class BioAuth extends ReactContextBaseJavaModule {
     private static ReactApplicationContext reactContext;
     private FingerprintAuthenticator fingerprintAuthenticator;
     private BiometricPromptAuthenticator biometricPromptAuthenticator;
+    static Callback onSuccess;
+    static Callback onFailure;
 
+    static protected enum errorTypes {
+        Failure,
+        noAuthenticationOnDevice
+    }
     BioAuth(ReactApplicationContext context) {
         super(context);
         reactContext = context;
@@ -44,7 +50,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
      * this method responsible when there is no biometrics available on the device,
      * it tries to ask for a passcode instead
      */
-    protected static void onNoBiometrics(Callback onSuccess) {
+    protected static void onNoBiometrics(Callback onSuccess, Callback onFailure) {
         KeyguardManager km = (KeyguardManager) reactContext.getSystemService(KEYGUARD_SERVICE);
         if (km.isKeyguardSecure()) {
             Intent authIntent = km.createConfirmDeviceCredentialIntent("tomer's bio Experiment", null);
@@ -58,7 +64,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
                             // passcode succeeded
                             onSuccess.invoke();
                         } else {
-                            System.out.println("s");
+                            onFailure.invoke(errorTypes.Failure.toString());
                             // passcode did not succeed
                         }
                         reactContext.removeActivityEventListener(this);
@@ -70,6 +76,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
             System.out.println(didSucceed);
         } else {
             System.out.println("no authentication on this device");
+            onFailure.invoke(errorTypes.noAuthenticationOnDevice.toString());
             // no authentication on this device
         }
     }
@@ -80,11 +87,14 @@ public class BioAuth extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void Authenticate(Callback onSuccess, Callback onFail) {
+    public void Authenticate(Callback onSuccess, Callback onFailure) {
+        BioAuth.onFailure = onFailure;
+        BioAuth.onSuccess = onSuccess;
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            biometricPromptAuthenticator.authenticate(onSuccess);
+            biometricPromptAuthenticator.authenticate(onSuccess, onFailure);
         } else {
-            fingerprintAuthenticator.authenticate(onSuccess);
+            fingerprintAuthenticator.authenticate(onSuccess, onFailure);
         }
     }
 }

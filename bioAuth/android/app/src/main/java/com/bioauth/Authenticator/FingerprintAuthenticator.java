@@ -59,10 +59,10 @@ public class FingerprintAuthenticator {
     }
 
     @TargetApi(23)
-    protected void authenticate(Callback onSuccess) {
+    protected void authenticate(Callback onSuccess, Callback onFailure) {
         if (fingerprintManager != null) {
             if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints()) {
-                this.showFingerPrintDialog(onSuccess);
+                this.showFingerPrintDialog(onSuccess, onFailure);
                 cancelSignal = new CancellationSignal();
                 fingerprintManager.authenticate(null, cancelSignal, 0, new FingerprintManager.AuthenticationCallback() {
                     @Override
@@ -105,12 +105,12 @@ public class FingerprintAuthenticator {
 
                 }, null);
             } else {
-              BioAuth.onNoBiometrics(onSuccess);
+              BioAuth.onNoBiometrics(onSuccess, onFailure);
             }
         }
     }
 
-    private void showFingerPrintDialog(Callback onSuccess) {
+    private void showFingerPrintDialog(Callback onSuccess, Callback onFailure) {
         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -122,7 +122,7 @@ public class FingerprintAuthenticator {
                             public void run() {
                                 fingerPrintDialog.hide();
                                 cancelSignal.cancel();
-                                BioAuth.onNoBiometrics(onSuccess);
+                                BioAuth.onNoBiometrics(onSuccess, onFailure);
                             }
                         });
 

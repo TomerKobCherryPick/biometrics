@@ -8,9 +8,13 @@
 
 #import <Foundation/Foundation.h>
 #import <React/RCTBridgeModule.h>
+#import <React/RCTUtils.h>
 
 @interface RCT_EXTERN_MODULE(BioAuth, NSObject)
 
-  RCT_EXTERN_METHOD(Authenticate)
+RCT_EXTERN_METHOD(Authenticate : (RCTResponseSenderBlock) onSuccess
+                  onFailure: (RCTResponseSenderBlock) onFailure
+                  
+)
 
 @end
