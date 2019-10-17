@@ -24,6 +24,7 @@ public class FingerprintAuthenticator {
     private AlertDialog fingerPrintDialog;
     private AlertDialog.Builder fingerPrintDialogBuilder;
     private CancellationSignal cancelSignal;
+    private BioAuth.errorTypes error;
 
     FingerprintAuthenticator(ReactApplicationContext context) {
         reactContext = context;
@@ -49,6 +50,10 @@ public class FingerprintAuthenticator {
                     public void run() {
                         fingerPrintDialog.hide();
                         cancelSignal.cancel();
+                        if (error == BioAuth.errorTypes.Failure) {
+                            BioAuth.runOnFailure(error);
+                            error = null;
+                        }
                     }
                 });
 
@@ -59,10 +64,10 @@ public class FingerprintAuthenticator {
     }
 
     @TargetApi(23)
-    protected void authenticate(Callback onSuccess, Callback onFailure) {
+    protected void authenticate() {
         if (fingerprintManager != null) {
             if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints()) {
-                this.showFingerPrintDialog(onSuccess, onFailure);
+                this.showFingerPrintDialog();
                 cancelSignal = new CancellationSignal();
                 fingerprintManager.authenticate(null, cancelSignal, 0, new FingerprintManager.AuthenticationCallback() {
                     @Override
@@ -82,7 +87,7 @@ public class FingerprintAuthenticator {
                             @Override
                             public void run() {
                                 fingerPrintDialog.hide();
-                                onSuccess.invoke();
+                                BioAuth.runOnSuccess();
                             }
                         });
                     }
@@ -90,6 +95,7 @@ public class FingerprintAuthenticator {
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
+                        error = BioAuth.errorTypes.Failure;
                         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -105,12 +111,12 @@ public class FingerprintAuthenticator {
 
                 }, null);
             } else {
-              BioAuth.onNoBiometrics(onSuccess, onFailure);
+              BioAuth.onNoBiometrics();
             }
         }
     }
 
-    private void showFingerPrintDialog(Callback onSuccess, Callback onFailure) {
+    private void showFingerPrintDialog() {
         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -122,7 +128,7 @@ public class FingerprintAuthenticator {
                             public void run() {
                                 fingerPrintDialog.hide();
                                 cancelSignal.cancel();
-                                BioAuth.onNoBiometrics(onSuccess, onFailure);
+                                BioAuth.onNoBiometrics();
                             }
                         });
 

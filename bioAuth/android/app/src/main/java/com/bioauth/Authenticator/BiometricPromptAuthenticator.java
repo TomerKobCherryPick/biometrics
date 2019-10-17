@@ -46,11 +46,9 @@ public class BiometricPromptAuthenticator {
                     // on pressing cancel
                     System.out.println("dialog");
                     if (error == BioAuth.errorTypes.Failure) {
-                        BioAuth.onFailure.invoke(BioAuth.errorTypes.Failure.toString());
+                        BioAuth.runOnFailure(error);
                         error = null;
-
                     }
-
                 }
             });
 
@@ -72,10 +70,10 @@ public class BiometricPromptAuthenticator {
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
-                        BioAuth.onNoBiometrics(onSuccess, onFailure);
+                        BioAuth.onNoBiometrics();
                     } else {
                         System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
-                        onFailure.invoke(BioAuth.errorTypes.Failure.toString());
+                        BioAuth.runOnFailure(BioAuth.errorTypes.Failure);
                     }
                 }
 
@@ -94,7 +92,7 @@ public class BiometricPromptAuthenticator {
                 public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
                     System.out.println("onAuthenticationSucceeded : result: " +  result);
-                    onSuccess.invoke();
+                    BioAuth.runOnSuccess();
                 }
             };
             bioPrompt.authenticate(cancelSignal, executor, callback);

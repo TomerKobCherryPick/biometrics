@@ -3,7 +3,7 @@
 //  bioAuth
 //
 //  Created by Tomer Kobrinsky on 26/09/2019.
-//  Copyright © 2019 Facebook. All rights reserved.
+//  Copyright © 2019 Cherrypick Consulting LTD.. All rights reserved.
 //
 
 #import <Foundation/Foundation.h>
