@@ -6,7 +6,6 @@ import android.hardware.biometrics.BiometricPrompt;
 import android.os.Build;
 import android.os.CancellationSignal;
 
-import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 
 import java.util.concurrent.Executor;
@@ -18,18 +17,15 @@ public class BiometricPromptAuthenticator {
     private CancellationSignal cancelSignal;
     private Executor executor;
     private BiometricPrompt.AuthenticationCallback callback;
-    private DialogInterface.OnClickListener onClickListener;
-    private BioAuth.errorTypes error;
 
     BiometricPromptAuthenticator(ReactApplicationContext context) {
-        setBioPrompt(context);
+        reactContext = context;
     }
 
     /***
      * api 28 implementation of Biometric authentication
-     * @param context - the ReactApplicationContext
      */
-    private void setBioPrompt(ReactApplicationContext context) {
+    private void setBioPrompt() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             executor = new Executor() {
                 @Override
@@ -37,29 +33,27 @@ public class BiometricPromptAuthenticator {
                     command.run();
                 }
             };
-
-            bioPromptBuilder = new BiometricPrompt.Builder(context);
-            bioPromptBuilder.setTitle("tomer's bio Experiment");
+            bioPromptBuilder = new BiometricPrompt.Builder(reactContext);
+            bioPromptBuilder.setTitle(BioAuth.title);
+            bioPromptBuilder.setSubtitle(BioAuth.description);
             bioPromptBuilder.setNegativeButton("Cancel", executor, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
                     // on pressing cancel
-                    System.out.println("dialog");
-                    if (error == BioAuth.errorTypes.Failure) {
-                        BioAuth.runOnFailure(error);
-                        error = null;
+                    if (BioAuth.error == BioAuth.errorTypes.Failure) {
+                        BioAuth.runOnFailure();
+                        BioAuth.error = null;
                     }
+                    cleanMemory();
                 }
             });
-
-
-
+            bioPrompt = bioPromptBuilder.build();
         }
     }
 
     @TargetApi(28)
-    protected void authenticate(Callback onSuccess, Callback onFailure) {
-        bioPrompt = bioPromptBuilder.build();
+    protected void authenticate() {
+        setBioPrompt();
         cancelSignal = new CancellationSignal();
         if (bioPrompt != null) {
             callback = new BiometricPrompt.AuthenticationCallback() {
@@ -72,31 +66,37 @@ public class BiometricPromptAuthenticator {
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
                         BioAuth.onNoBiometrics();
                     } else {
-                        System.out.println("errorCode: " + errorCode + ", errorString: " + errString);
-                        BioAuth.runOnFailure(BioAuth.errorTypes.Failure);
+                        if (BioAuth.error == BioAuth.errorTypes.Failure) {
+                            BioAuth.runOnFailure();
+                        }
+                        cleanMemory();
                     }
                 }
 
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
-                    error = BioAuth.errorTypes.Failure;
-                    System.out.println("authentication failed");
+                    BioAuth.error = BioAuth.errorTypes.Failure;
                 }
                 @Override
                 public void onAuthenticationHelp(int helpCode, CharSequence helpString) {
                     super.onAuthenticationHelp(helpCode, helpString);
-                    System.out.println("authentication Help : helpCode: " + helpCode + " helpString: " + helpString);
                 }
                 @Override
                 public void onAuthenticationSucceeded(BiometricPrompt.AuthenticationResult result) {
                     super.onAuthenticationSucceeded(result);
-                    System.out.println("onAuthenticationSucceeded : result: " +  result);
                     BioAuth.runOnSuccess();
+                    cleanMemory();
                 }
+
             };
             bioPrompt.authenticate(cancelSignal, executor, callback);
         }
+    }
+
+    protected void cleanMemory() {
+        bioPrompt = null;
+        bioPromptBuilder = null;
     }
 
 }

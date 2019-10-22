@@ -12,10 +12,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
-
-
 import com.bioauth.R;
-import com.facebook.react.bridge.Callback;
+
 import com.facebook.react.bridge.ReactApplicationContext;
 
 public class FingerprintAuthenticator {
@@ -24,35 +22,33 @@ public class FingerprintAuthenticator {
     private AlertDialog fingerPrintDialog;
     private AlertDialog.Builder fingerPrintDialogBuilder;
     private CancellationSignal cancelSignal;
-    private BioAuth.errorTypes error;
 
     FingerprintAuthenticator(ReactApplicationContext context) {
         reactContext = context;
-        setFingerprintManager(context);
+
     }
 
     @TargetApi(23)
-    private void setFingerprintManager(ReactApplicationContext context) {
-        fingerprintManager = (FingerprintManager) context.getSystemService(context.FINGERPRINT_SERVICE);
-        setFingerPrintAlertDialog(context);
+    private void setFingerprintManager() {
+        fingerprintManager = (FingerprintManager) reactContext.getSystemService(reactContext.FINGERPRINT_SERVICE);
     }
 
     @TargetApi(23)
-    private void setFingerPrintAlertDialog(ReactApplicationContext context) {
-        fingerPrintDialogBuilder = new AlertDialog.Builder(context);
-        fingerPrintDialogBuilder.setTitle("Fingerprint ID for Tomer's bio experiment");
+    private void setFingerPrintAlertDialog() {
+        fingerPrintDialogBuilder = new AlertDialog.Builder(reactContext);
+        fingerPrintDialogBuilder.setTitle(BioAuth.title);
         fingerPrintDialogBuilder.setCancelable(false);
         fingerPrintDialogBuilder.setPositiveButton("CANCEL", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                context.getCurrentActivity().runOnUiThread(new Runnable() {
+                reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         fingerPrintDialog.hide();
                         cancelSignal.cancel();
-                        if (error == BioAuth.errorTypes.Failure) {
-                            BioAuth.runOnFailure(error);
-                            error = null;
+                        if (BioAuth.error == BioAuth.errorTypes.Failure) {
+                            BioAuth.runOnFailure();
+                            BioAuth.error = null;
                         }
                     }
                 });
@@ -60,12 +56,35 @@ public class FingerprintAuthenticator {
             }
         });
 
+        fingerPrintDialogBuilder.setNegativeButton("USE PASSWORD", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        fingerPrintDialog.hide();
+                        cancelSignal.cancel();
+                        BioAuth.onNoBiometrics();
+                    }
+                });
+
+            }
+        });
+
+        LayoutInflater inflater = (LayoutInflater) reactContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+        View customLayout = inflater.inflate(R.layout.fingerprint_dialog, null);
+        TextView description = (TextView) customLayout.findViewById(R.id.fingerprint_description);
+        description.setText(BioAuth.description);
+        fingerPrintDialogBuilder.setView(customLayout);
+
 
     }
 
     @TargetApi(23)
     protected void authenticate() {
+        setFingerprintManager();
         if (fingerprintManager != null) {
+            setFingerPrintAlertDialog();
             if (fingerprintManager.isHardwareDetected() && fingerprintManager.hasEnrolledFingerprints()) {
                 this.showFingerPrintDialog();
                 cancelSignal = new CancellationSignal();
@@ -95,7 +114,7 @@ public class FingerprintAuthenticator {
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
-                        error = BioAuth.errorTypes.Failure;
+                        BioAuth.error = BioAuth.errorTypes.Failure;
                         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
@@ -111,32 +130,21 @@ public class FingerprintAuthenticator {
 
                 }, null);
             } else {
-              BioAuth.onNoBiometrics();
+                BioAuth.onNoBiometrics();
             }
         }
+    }
+
+    protected void cleanMemory() {
+        fingerprintManager = null;
+        fingerPrintDialog = null;
+        fingerPrintDialogBuilder = null;
     }
 
     private void showFingerPrintDialog() {
         reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                fingerPrintDialogBuilder.setNegativeButton("USE PASSWORD", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                fingerPrintDialog.hide();
-                                cancelSignal.cancel();
-                                BioAuth.onNoBiometrics();
-                            }
-                        });
-
-                    }
-                });
-                LayoutInflater inflater = (LayoutInflater) reactContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                View customLayout = inflater.inflate(R.layout.fingerprint_dialog, null);
-                fingerPrintDialogBuilder.setView(customLayout);
                 fingerPrintDialog = fingerPrintDialogBuilder.create();
                 fingerPrintDialog.setOwnerActivity(reactContext.getCurrentActivity());
                 fingerPrintDialog.getWindow().setType(WindowManager.LayoutParams.

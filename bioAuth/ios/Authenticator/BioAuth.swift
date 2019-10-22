@@ -20,12 +20,12 @@ class BioAuth: NSObject {
     return false
   }
   
-  @objc func Authenticate(_ onSuccess: @escaping RCTResponseSenderBlock, onFailure: @escaping RCTResponseSenderBlock) {
+  @objc func Authenticate(_ authenticationDescription: NSString, onSuccess: @escaping RCTResponseSenderBlock, onFailure: @escaping RCTResponseSenderBlock) {
      print("authticate")
     let authenticator = LAContext()
     // User authentication with either biometry, Apple watch or the device passcode.
     if (authenticator.canEvaluatePolicy(LAPolicy.deviceOwnerAuthentication, error: nil)) {
-      authenticator.evaluatePolicy(LAPolicy.deviceOwnerAuthentication, localizedReason: "check") { (didSucceed, error) in
+      authenticator.evaluatePolicy(LAPolicy.deviceOwnerAuthentication, localizedReason: authenticationDescription as String) { (didSucceed, error) in
         if (didSucceed) {
            print("Authentication succeeded")
            onSuccess(["success"])

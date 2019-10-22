@@ -2,15 +2,15 @@ package com.bioauth.Authenticator;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
-import android.content.Intent;
 import android.app.KeyguardManager;
+import android.content.Intent;
 import android.os.Build;
 
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.BaseActivityEventListener;
 import com.facebook.react.bridge.Callback;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactApplicationContext;
+import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 
 import static android.content.Context.KEYGUARD_SERVICE;
@@ -26,12 +26,15 @@ import static android.content.Context.KEYGUARD_SERVICE;
  */
 public class BioAuth extends ReactContextBaseJavaModule {
     private static ReactApplicationContext reactContext;
-    private FingerprintAuthenticator fingerprintAuthenticator;
-    private BiometricPromptAuthenticator biometricPromptAuthenticator;
+    private static FingerprintAuthenticator fingerprintAuthenticator;
+    private static BiometricPromptAuthenticator biometricPromptAuthenticator;
     private static Callback onSuccess;
     private static Callback onFailure;
+    protected static String title = "";
+    protected static String description = "";
+    protected static errorTypes error;
 
-    static protected enum errorTypes {
+    protected enum errorTypes {
         Failure,
         noAuthenticationOnDevice
     }
@@ -51,7 +54,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
         }
     }
 
-    public static void runOnFailure(errorTypes error) {
+    public static void runOnFailure() {
         if (onFailure != null) {
             onFailure.invoke(error.toString());
         }
@@ -64,32 +67,46 @@ public class BioAuth extends ReactContextBaseJavaModule {
      */
     protected static void onNoBiometrics() {
         KeyguardManager km = (KeyguardManager) reactContext.getSystemService(KEYGUARD_SERVICE);
+
         if (km.isKeyguardSecure()) {
-            Intent authIntent = km.createConfirmDeviceCredentialIntent("tomer's bio Experiment", null);
+            Intent authIntent = km.createConfirmDeviceCredentialIntent(BioAuth.title, BioAuth.description);
             int AUTH_REQUEST_CODE = 1;
             ActivityEventListener authEventListener = new BaseActivityEventListener(){
                 @Override
-                public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
-                    super.onActivityResult(activity, requestCode, resultCode, intent);
+                public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
+                    super.onActivityResult(activity, requestCode, resultCode, data);
                     if (requestCode == AUTH_REQUEST_CODE) {
                         if (resultCode == Activity.RESULT_OK) {
                             // passcode succeeded
                             runOnSuccess();
                         } else {
                             // passcode did not succeed
-                            onFailure.invoke(errorTypes.Failure.toString());
+                            error = errorTypes.Failure;
+                            runOnFailure();
                         }
                         reactContext.removeActivityEventListener(this);
                     }
                 }
+
             };
             reactContext.addActivityEventListener(authEventListener);
-            boolean didSucceed = reactContext.startActivityForResult(authIntent, AUTH_REQUEST_CODE, new android.os.Bundle());
-            System.out.println(didSucceed);
+
+            reactContext.startActivityForResult(authIntent, AUTH_REQUEST_CODE, new android.os.Bundle());
+
         } else {
             // no authentication on this device
-            onFailure.invoke(errorTypes.noAuthenticationOnDevice.toString());
-            System.out.println("no authentication on this device");
+            error = errorTypes.noAuthenticationOnDevice;
+            runOnFailure();
+        }
+        cleanMemory();
+    }
+
+    private static void cleanMemory() {
+        if (biometricPromptAuthenticator != null) {
+            biometricPromptAuthenticator.cleanMemory();
+        }
+        if (fingerprintAuthenticator != null) {
+            fingerprintAuthenticator.cleanMemory();
         }
     }
 
@@ -101,12 +118,14 @@ public class BioAuth extends ReactContextBaseJavaModule {
 
 
     @ReactMethod
-    public void Authenticate(Callback onSuccess, Callback onFailure) {
+    public void Authenticate(String authenticationTitle, String authenticationDescription, Callback onSuccess, Callback onFailure) {
         BioAuth.onFailure = onFailure;
         BioAuth.onSuccess = onSuccess;
+        BioAuth.title = authenticationTitle;
+        BioAuth.description = authenticationDescription;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            biometricPromptAuthenticator.authenticate(onSuccess, onFailure);
+            biometricPromptAuthenticator.authenticate();
         } else {
             fingerprintAuthenticator.authenticate();
         }
