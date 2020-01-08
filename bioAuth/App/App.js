@@ -18,7 +18,7 @@ class App extends Component {
   onFailure = (error) => {
     if (error === BiometricsAuthenticator.errors.noAuthenticationOnDevice) {
       this.setState({text: 'No Authentication avialable', buttonColor: 'yellow'})
-    } else if (error === BiometricsAuthenticator.errors.failure) {
+    } else if (error === BiometricsAuthenticator.errors.authenticationFailed) {
       this.setState({text: 'Fail :/ , try again', buttonColor: 'red'})
     }
   }

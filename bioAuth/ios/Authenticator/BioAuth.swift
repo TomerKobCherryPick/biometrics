@@ -11,32 +11,38 @@ import LocalAuthentication
 
 @objc (BioAuth)
 class BioAuth: NSObject {
+  static var isSimulator: Bool {
+     return TARGET_OS_SIMULATOR != 0
+  }
+  enum errors: String {
+    case authenticationFailed = "authenticationFailed"
+    case noAuthenticationOnDevice = "noAuthenticationOnDevice"
+  }
   override init() {
     super.init()
-      print("constructed")
   }
   
   @objc static func requiresMainQueueSetup() -> Bool {
     return false
   }
   
-  @objc func Authenticate(_ authenticationDescription: NSString, onSuccess: @escaping RCTResponseSenderBlock, onFailure: @escaping RCTResponseSenderBlock) {
-     print("authticate")
+  @objc func authenticate(_ authenticationDescription: NSString, onSuccess: @escaping RCTResponseSenderBlock, onFailure: @escaping RCTResponseSenderBlock) {
     let authenticator = LAContext()
-    // User authentication with either biometry, Apple watch or the device passcode.
-    if (authenticator.canEvaluatePolicy(LAPolicy.deviceOwnerAuthentication, error: nil)) {
+    
+    // since simulator don't really replicate device authentication well(no option to add authentication but prompts a passcode ui and acts as if any passcode will pass except empty passcode). it make sense that we act as if authentication succeeded
+    if (BioAuth.isSimulator) {
+      onSuccess(["success"])
+    } // User authentication with either biometry, Apple watch or the device passcode.
+    else if (authenticator.canEvaluatePolicy(LAPolicy.deviceOwnerAuthentication, error: nil)) {
       authenticator.evaluatePolicy(LAPolicy.deviceOwnerAuthentication, localizedReason: authenticationDescription as String) { (didSucceed, error) in
         if (didSucceed) {
-           print("Authentication succeeded")
-           onSuccess(["success"])
+          onSuccess(["success"])
         } else {
-           print("Authentication failed")
-           onFailure(["Failure"])
+          onFailure([errors.authenticationFailed.rawValue])
         }
       }
     } else {
-      print("no Authentication On this Device")
-      onFailure(["noAuthenticationOnDevice"])
+      onFailure([errors.noAuthenticationOnDevice.rawValue])
     }
   }
 }

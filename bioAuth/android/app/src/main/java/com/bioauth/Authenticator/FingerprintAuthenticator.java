@@ -1,6 +1,7 @@
 package com.bioauth.Authenticator;
 
 import android.annotation.TargetApi;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -16,55 +17,68 @@ import com.bioauth.R;
 
 import com.facebook.react.bridge.ReactApplicationContext;
 
+
+import java.lang.ref.WeakReference;
+
 public class FingerprintAuthenticator {
     private static ReactApplicationContext reactContext;
     private FingerprintManager fingerprintManager;
     private AlertDialog fingerPrintDialog;
     private AlertDialog.Builder fingerPrintDialogBuilder;
     private CancellationSignal cancelSignal;
+    private BioAuth.errorTypes error;
+    private static  WeakReference<Activity> weakActivity;
 
     FingerprintAuthenticator(ReactApplicationContext context) {
         reactContext = context;
+    }
 
+    public static void setActivity(Activity activity) {
+        weakActivity = new WeakReference<>(activity);
     }
 
     @TargetApi(23)
     private void setFingerprintManager() {
-        fingerprintManager = (FingerprintManager) reactContext.getSystemService(reactContext.FINGERPRINT_SERVICE);
+        fingerprintManager = (FingerprintManager) getCurrentActivity().getSystemService(reactContext.FINGERPRINT_SERVICE);
     }
 
     @TargetApi(23)
     private void setFingerPrintAlertDialog() {
-        fingerPrintDialogBuilder = new AlertDialog.Builder(reactContext);
+        Context ctx = getCurrentActivity();
+
+        fingerPrintDialogBuilder = new AlertDialog.Builder(ctx);
         fingerPrintDialogBuilder.setTitle(BioAuth.title);
         fingerPrintDialogBuilder.setCancelable(false);
+        // cancel button
         fingerPrintDialogBuilder.setPositiveButton("CANCEL", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                getCurrentActivity().runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         fingerPrintDialog.hide();
                         cancelSignal.cancel();
-                        if (BioAuth.error == BioAuth.errorTypes.Failure) {
-                            BioAuth.runOnFailure();
-                            BioAuth.error = null;
+                        // only if the user tried to previously authenticate
+                        // and failed (in authenticationFailed function),
+                        // then on pressing cancel, we treat it like the authentication has failed
+                        if (error != null) {
+                            BioAuth.runOnFailure(error);
                         }
+                        cleanMemory();
                     }
                 });
-
             }
         });
 
         fingerPrintDialogBuilder.setNegativeButton("USE PASSWORD", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                getCurrentActivity().runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         fingerPrintDialog.hide();
                         cancelSignal.cancel();
-                        BioAuth.onNoBiometrics();
+                        BioAuth.passcodeAuthenticaton();
                     }
                 });
 
@@ -102,11 +116,12 @@ public class FingerprintAuthenticator {
                     @Override
                     public void onAuthenticationSucceeded(FingerprintManager.AuthenticationResult result) {
                         super.onAuthenticationSucceeded(result);
-                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                        getCurrentActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 fingerPrintDialog.hide();
                                 BioAuth.runOnSuccess();
+                                cleanMemory();
                             }
                         });
                     }
@@ -114,8 +129,8 @@ public class FingerprintAuthenticator {
                     @Override
                     public void onAuthenticationFailed() {
                         super.onAuthenticationFailed();
-                        BioAuth.error = BioAuth.errorTypes.Failure;
-                        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+                        error = BioAuth.errorTypes.authenticationFailed;
+                        getCurrentActivity().runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 Window fingerprintDialogWindow = fingerPrintDialog.getWindow();
@@ -130,7 +145,7 @@ public class FingerprintAuthenticator {
 
                 }, null);
             } else {
-                BioAuth.onNoBiometrics();
+                BioAuth.passcodeAuthenticaton();
             }
         }
     }
@@ -139,18 +154,25 @@ public class FingerprintAuthenticator {
         fingerprintManager = null;
         fingerPrintDialog = null;
         fingerPrintDialogBuilder = null;
+        error = null;
     }
 
     private void showFingerPrintDialog() {
-        reactContext.getCurrentActivity().runOnUiThread(new Runnable() {
+        getCurrentActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 fingerPrintDialog = fingerPrintDialogBuilder.create();
-                fingerPrintDialog.setOwnerActivity(reactContext.getCurrentActivity());
-                fingerPrintDialog.getWindow().setType(WindowManager.LayoutParams.
-                        TYPE_TOAST);
                 fingerPrintDialog.show();
             }
         });
+    }
+
+    private Activity getCurrentActivity() {
+        if (weakActivity != null && weakActivity.get() != null) {
+            return weakActivity.get();
+        }
+        else {
+            return reactContext.getCurrentActivity();
+        }
     }
 }

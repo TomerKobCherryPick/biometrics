@@ -32,12 +32,12 @@ public class BioAuth extends ReactContextBaseJavaModule {
     private static Callback onFailure;
     protected static String title = "";
     protected static String description = "";
-    protected static errorTypes error;
 
     protected enum errorTypes {
-        Failure,
+        authenticationFailed,
         noAuthenticationOnDevice
     }
+
     BioAuth(ReactApplicationContext context) {
         super(context);
         reactContext = context;
@@ -54,7 +54,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
         }
     }
 
-    public static void runOnFailure() {
+    public static void runOnFailure(errorTypes error) {
         if (onFailure != null) {
             onFailure.invoke(error.toString());
         }
@@ -65,7 +65,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
      * this method responsible when there is no biometrics available on the device,
      * it tries to ask for a passcode instead
      */
-    protected static void onNoBiometrics() {
+    protected static void passcodeAuthenticaton() {
         KeyguardManager km = (KeyguardManager) reactContext.getSystemService(KEYGUARD_SERVICE);
 
         if (km.isKeyguardSecure()) {
@@ -81,8 +81,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
                             runOnSuccess();
                         } else {
                             // passcode did not succeed
-                            error = errorTypes.Failure;
-                            runOnFailure();
+                            runOnFailure(errorTypes.authenticationFailed);
                         }
                         reactContext.removeActivityEventListener(this);
                     }
@@ -95,8 +94,7 @@ public class BioAuth extends ReactContextBaseJavaModule {
 
         } else {
             // no authentication on this device
-            error = errorTypes.noAuthenticationOnDevice;
-            runOnFailure();
+            runOnFailure(errorTypes.noAuthenticationOnDevice);
         }
         cleanMemory();
     }
@@ -118,14 +116,25 @@ public class BioAuth extends ReactContextBaseJavaModule {
 
 
     @ReactMethod
-    public void Authenticate(String authenticationTitle, String authenticationDescription, Callback onSuccess, Callback onFailure) {
+    public void authenticate(String authenticationTitle, String authenticationDescription, Callback onSuccess, Callback onFailure) {
         BioAuth.onFailure = onFailure;
         BioAuth.onSuccess = onSuccess;
         BioAuth.title = authenticationTitle;
         BioAuth.description = authenticationDescription;
+        String brand = Build.BRAND;
+
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            biometricPromptAuthenticator.authenticate();
+            /*
+             * this is because of a known issue with how OnePlus implemented biometric prompt
+             * https://forums.oneplus.com/threads/problems-about-oneplus-6t-fingerprint-api.944959/
+             */
+            if (brand.equals("OnePlus")) {
+                passcodeAuthenticaton();
+            } else {
+                biometricPromptAuthenticator.authenticate();
+            }
+
         } else {
             fingerprintAuthenticator.authenticate();
         }

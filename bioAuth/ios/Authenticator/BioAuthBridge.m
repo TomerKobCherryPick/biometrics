@@ -12,7 +12,7 @@
 
 @interface RCT_EXTERN_MODULE(BioAuth, NSObject)
 
-RCT_EXTERN_METHOD(Authenticate : (NSString)authenticationDescription
+RCT_EXTERN_METHOD(authenticate : (NSString)authenticationDescription
                   onSuccess:(RCTResponseSenderBlock) onSuccess
                   onFailure: (RCTResponseSenderBlock) onFailure
                   )

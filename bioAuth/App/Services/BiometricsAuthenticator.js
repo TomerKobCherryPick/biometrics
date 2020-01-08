@@ -2,22 +2,24 @@ const authenticator = NativeModules.BioAuth
 import {NativeModules, Platform} from 'react-native'
 
 const errors = {
-  failure: "Failure",
+  authenticationFailed: "authenticationFailed",
   noAuthenticationOnDevice: "noAuthenticationOnDevice"
 }
 
-const authenticate =  (onSuccess, onFailure, title, description) => {
-    const authenticationTitle = title ?? "myAuthentication"
-    const authenticationDescription = description ?? "Please authenticate to continue"
-    if (Platform.OS === 'android') {
-      authenticator.Authenticate(authenticationTitle, authenticationDescription, onSuccess, onFailure)
-    } else {
-      // in ios there is no option to change the title of authentication alert
-      authenticator.Authenticate(authenticationDescription, onSuccess, onFailure)
-    }
-
+const authenticationText = {
+  getTitle: () =>  "Authentication",
+  getDescription: () => "Please authenticate to continue",
 }
 
-
+const authenticate = async (onSuccess, onFailure, title, description) => {
+    const authenticationTitle = title ?? authenticationText.getTitle()
+    const authenticationDescription = description ?? authenticationText.getDescription()
+    if (Platform.OS === 'android') {
+      await authenticator.authenticate(authenticationTitle, authenticationDescription, onSuccess, onFailure)
+    } else {
+      // in ios there is no option to change the title of authentication alert
+      await authenticator.authenticate(authenticationDescription, onSuccess, onFailure)
+    }
+}
 
 export default { authenticate, errors }

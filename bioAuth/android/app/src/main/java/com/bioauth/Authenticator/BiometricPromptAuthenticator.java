@@ -1,5 +1,4 @@
 package com.bioauth.Authenticator;
-
 import android.annotation.TargetApi;
 import android.content.DialogInterface;
 import android.hardware.biometrics.BiometricPrompt;
@@ -17,6 +16,7 @@ public class BiometricPromptAuthenticator {
     private CancellationSignal cancelSignal;
     private Executor executor;
     private BiometricPrompt.AuthenticationCallback callback;
+    private BioAuth.errorTypes error;
 
     BiometricPromptAuthenticator(ReactApplicationContext context) {
         reactContext = context;
@@ -36,17 +36,20 @@ public class BiometricPromptAuthenticator {
             bioPromptBuilder = new BiometricPrompt.Builder(reactContext);
             bioPromptBuilder.setTitle(BioAuth.title);
             bioPromptBuilder.setSubtitle(BioAuth.description);
+            // cancel button
             bioPromptBuilder.setNegativeButton("Cancel", executor, new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialog, int which) {
-                    // on pressing cancel
-                    if (BioAuth.error == BioAuth.errorTypes.Failure) {
-                        BioAuth.runOnFailure();
-                        BioAuth.error = null;
+                    // only if the user tried to previously authenticate
+                    // and failed (in authenticationFailed function),
+                    // then on pressing cancel, we treat it like the authentication has failed
+                    if (error == BioAuth.errorTypes.authenticationFailed) {
+                        BioAuth.runOnFailure(error);
                     }
                     cleanMemory();
                 }
             });
+
             bioPrompt = bioPromptBuilder.build();
         }
     }
@@ -63,11 +66,12 @@ public class BiometricPromptAuthenticator {
                     if ((errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT) ||
                             (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE) ||
-                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS)) {
-                        BioAuth.onNoBiometrics();
+                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT) ||
+                            (errorCode == BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT)) {
+                        BioAuth.passcodeAuthenticaton();
                     } else {
-                        if (BioAuth.error == BioAuth.errorTypes.Failure) {
-                            BioAuth.runOnFailure();
+                        if (error == BioAuth.errorTypes.authenticationFailed) {
+                            BioAuth.runOnFailure(error);
                         }
                         cleanMemory();
                     }
@@ -76,7 +80,7 @@ public class BiometricPromptAuthenticator {
                 @Override
                 public void onAuthenticationFailed() {
                     super.onAuthenticationFailed();
-                    BioAuth.error = BioAuth.errorTypes.Failure;
+                    error = BioAuth.errorTypes.authenticationFailed;
                 }
                 @Override
                 public void onAuthenticationHelp(int helpCode, CharSequence helpString) {
@@ -89,6 +93,8 @@ public class BiometricPromptAuthenticator {
                     cleanMemory();
                 }
 
+
+
             };
             bioPrompt.authenticate(cancelSignal, executor, callback);
         }
@@ -97,6 +103,7 @@ public class BiometricPromptAuthenticator {
     protected void cleanMemory() {
         bioPrompt = null;
         bioPromptBuilder = null;
+        error = null;
     }
 
 }
